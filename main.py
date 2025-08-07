@@ -9,6 +9,7 @@ import pandas as pd
 from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go
+import os
 
 # 条件付きインポート（janome関連）
 try:
@@ -78,7 +79,39 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def load_search_history():
+    """CSVファイルから検索履歴を読み込む"""
+    csv_file = 'search_history.csv'
+    if os.path.exists(csv_file):
+        try:
+            df = pd.read_csv(csv_file, encoding='utf-8-sig')
+            # CSVから辞書のリストに変換
+            history_list = []
+            for _, row in df.iterrows():
+                # paramsカラムをJSONから辞書に変換
+                params_str = row.get('params', '{}')
+                try:
+                    params = json.loads(params_str) if isinstance(params_str, str) else params_str
+                except:
+                    params = {}
+                
+                history_item = {
+                    'timestamp': row.get('timestamp', ''),
+                    'params': params,
+                    'results_count': row.get('results_count', 0)
+                }
+                history_list.append(history_item)
+            return history_list
+        except Exception as e:
+            st.warning(f"検索履歴の読み込みに失敗しました: {e}")
+            return []
+    return []
+
 def main():
+    # 検索履歴をCSVから読み込み
+    if 'search_history' not in st.session_state:
+        st.session_state.search_history = load_search_history()
+    
     # ヘッダー
     st.markdown('<h1 class="main-header">🏛️ 国会議事録検索・分析アプリ</h1>', unsafe_allow_html=True)
     
@@ -88,14 +121,17 @@ def main():
     # アプリケーション初期化
     app = KokkaiSearchApp()
     
+    # セッション状態からページを取得（再検索時の自動移動用）
+    current_page = st.session_state.get('current_page', page)
+    
     # ページ分岐
-    if page == "🔍 検索":
+    if current_page == "🔍 検索":
         app.search_page()
-    elif page == "📊 分析":
+    elif current_page == "📊 分析":
         app.analysis_page()
-    elif page == "🏛️ 会議別キーワード分析" and JANOME_AVAILABLE:
+    elif current_page == "🏛️ 会議別キーワード分析" and JANOME_AVAILABLE:
         app.meeting_analysis_page()
-    elif page == "📚 検索履歴":
+    elif current_page == "📚 検索履歴":
         app.history_page()
     else:
         app.help_page()

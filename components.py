@@ -14,5 +14,18 @@ def show_sidebar():
         except ImportError:
             pass
         
-        page = st.selectbox("ページを選択", page_options)
+        # セッション状態から現在のページを取得
+        current_page = st.session_state.get('current_page', "🔍 検索")
+        
+        # ページ選択のデフォルト値を設定
+        default_index = 0
+        if current_page in page_options:
+            default_index = page_options.index(current_page)
+        
+        page = st.selectbox("ページを選択", page_options, index=default_index)
+        
+        # ページが変更された場合はセッション状態を更新
+        if page != current_page:
+            st.session_state['current_page'] = page
+        
         return page

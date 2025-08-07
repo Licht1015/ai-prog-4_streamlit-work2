@@ -9,6 +9,7 @@ import pandas as pd
 from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go
+import os
 
 # 条件付きインポート（janome関連）
 try:
@@ -56,6 +57,72 @@ class KokkaiSearchApp:
         else:
             self.tokenizer = None
             self.stop_words = set()
+
+    def save_search_history_to_csv(self):
+        """検索履歴をCSVファイルに保存"""
+        if st.session_state.search_history:
+            try:
+                # 検索履歴をDataFrameに変換
+                history_data = []
+                for item in st.session_state.search_history:
+                    history_data.append({
+                        'timestamp': item.get('timestamp', ''),
+                        'params': json.dumps(item.get('params', {}), ensure_ascii=False),
+                        'results_count': item.get('results_count', 0)
+                    })
+                
+                df = pd.DataFrame(history_data)
+                df.to_csv('search_history.csv', index=False, encoding='utf-8-sig')
+                return True
+            except Exception as e:
+                st.error(f"検索履歴の保存に失敗しました: {e}")
+                return False
+        return False
+
+    def add_to_search_history(self, search_params, results_count):
+        """検索履歴に追加してCSVに保存"""
+        # デバッグ情報
+        st.write(f"💾 検索履歴に保存: {search_params}")
+        
+        search_history_item = {
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'params': search_params,
+            'results_count': results_count
+        }
+        
+        # 重複チェック（同じパラメータの場合は更新）
+        existing_index = None
+        for i, item in enumerate(st.session_state.search_history):
+            if item.get('params') == search_params:
+                existing_index = i
+                break
+        
+        if existing_index is not None:
+            # 既存の項目を更新
+            st.session_state.search_history[existing_index] = search_history_item
+            st.write(f"📝 既存の履歴を更新: インデックス {existing_index}")
+        else:
+            # 新しい項目を追加
+            st.session_state.search_history.insert(0, search_history_item)
+            st.write(f"➕ 新しい履歴を追加: {len(st.session_state.search_history)}件目")
+        
+        # 履歴を10件までに制限
+        if len(st.session_state.search_history) > 10:
+            st.session_state.search_history = st.session_state.search_history[:10]
+        
+        # CSVに保存
+        self.save_search_history_to_csv()
+
+    def clear_search_history(self):
+        """検索履歴をクリア"""
+        st.session_state.search_history = []
+        # CSVファイルを削除
+        if os.path.exists('search_history.csv'):
+            try:
+                os.remove('search_history.csv')
+                st.success("検索履歴をクリアしました。")
+            except Exception as e:
+                st.error(f"検索履歴のクリアに失敗しました: {e}")
 
     def highlight_text(self, text, keywords_str):
         """テキスト内のキーワードをハイライト"""
@@ -335,30 +402,87 @@ class KokkaiSearchApp:
     def search_page(self):
         st.markdown('<h2 class="sub-header">🔍 国会議事録検索</h2>', unsafe_allow_html=True)
         
+        # 復元された検索条件を取得
+        restored_params = st.session_state.get('re_search_params', {})
+        auto_search = st.session_state.get('auto_search', False)
+        
+        # 復元された条件がある場合は表示
+        if restored_params:
+            if auto_search:
+                st.info("📋 検索履歴から復元された条件で自動検索を実行します。")
+            else:
+                st.info("📋 検索履歴から復元された条件が設定されています。")
+            # 復元された条件をセッション状態に保存
+            st.session_state['current_search_params'] = restored_params
+            # 復元された条件をクリア
+            del st.session_state['re_search_params']
+            # 自動検索フラグをクリア
+            if auto_search:
+                del st.session_state['auto_search']
+        
+        # 現在の検索条件を取得（復元された条件または保存された条件）
+        current_params = st.session_state.get('current_search_params', {})
+        
         # 検索フォーム
         with st.form("search_form"):
+            # 復元された条件または保存された条件を設定
+            default_keyword = current_params.get("any", "")
+            default_speaker = current_params.get("speaker", "")
+            default_meeting = current_params.get("nameOfMeeting", "")
+            default_house = current_params.get("nameOfHouse", "指定しない")
+            
             keyword = st.text_input("🔎 検索キーワード（AND検索）", 
+                                  value=default_keyword,
                                   placeholder="例：デジタル改革 規制緩和",
                                   help="複数のキーワードをスペースで区切って入力")
             
             col1, col2, col3 = st.columns(3)
             with col1:
-                speaker = st.text_input("👤 発言者名", placeholder="例：岸田文雄")
+                speaker = st.text_input("👤 発言者名", 
+                                      value=default_speaker,
+                                      placeholder="例：岸田文雄")
             with col2:
-                name_of_meeting = st.text_input("🏛️ 会議名", placeholder="例：予算委員会")
+                name_of_meeting = st.text_input("🏛️ 会議名", 
+                                              value=default_meeting,
+                                              placeholder="例：予算委員会")
             with col3:
-                name_of_house = st.selectbox("🏢 院名", ("指定しない", "衆議院", "参議院", "両院"))
+                # 院名の選択肢を設定
+                house_options = ("指定しない", "衆議院", "参議院", "両院")
+                house_index = 0
+                if default_house in house_options:
+                    house_index = house_options.index(default_house)
+                name_of_house = st.selectbox("🏢 院名", house_options, index=house_index)
             
             col4, col5 = st.columns(2)
             with col4:
-                from_date = st.date_input("📅 検索期間（開始日）", value=None)
+                # 日付の復元
+                from_date_str = current_params.get("from", "")
+                from_date = None
+                if from_date_str:
+                    try:
+                        from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+                    except:
+                        from_date = None
+                from_date = st.date_input("📅 検索期間（開始日）", value=from_date)
             with col5:
-                until_date = st.date_input("📅 検索期間（終了日）", value=None)
+                until_date_str = current_params.get("until", "")
+                until_date = None
+                if until_date_str:
+                    try:
+                        until_date = datetime.strptime(until_date_str, '%Y-%m-%d').date()
+                    except:
+                        until_date = None
+                until_date = st.date_input("📅 検索期間（終了日）", value=until_date)
             
             search_button = st.form_submit_button("🔍 検索実行", type="primary")
         
-        if search_button:
-            # 検索パラメータの構築
+        # 自動検索フラグがある場合は自動的に検索を実行
+        if auto_search and current_params:
+            search_button = True
+            # 自動検索の場合は検索パラメータを構築
+            search_params = current_params.copy()
+        elif search_button:
+            # 通常の検索ボタンが押された場合
             search_params = {}
             
             if keyword:
@@ -373,8 +497,89 @@ class KokkaiSearchApp:
                 search_params["from"] = from_date.strftime('%Y-%m-%d')
             if until_date:
                 search_params["until"] = until_date.strftime('%Y-%m-%d')
+        
+        # 既存の検索結果がある場合は表示
+        if st.session_state.search_results and not (search_button or (auto_search and current_params)):
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.success(f"📊 前回の検索結果が表示されています。")
+            with col2:
+                if st.button("🗑️ 検索結果をクリア", type="secondary"):
+                    st.session_state.search_results = None
+                    st.session_state.analytics_data = {}
+                    if 'meeting_analysis' in st.session_state:
+                        del st.session_state.meeting_analysis
+                    st.rerun()
+            
+            data = st.session_state.search_results
+            current_keyword = st.session_state.get('current_search_params', {}).get('any', '')
+            
+            # エクスポート機能
+            export_df = self.export_results(data, st.session_state.get('current_search_params', {}))
+            if export_df is not None:
+                csv = export_df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📄 検索結果をCSVでダウンロード",
+                    data=csv,
+                    file_name=f"kokkai_search_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+            
+            # 検索結果表示
+            for i, record in enumerate(data["speechRecord"]):
+                with st.expander(f"📝 {record['speaker']}（{record['nameOfMeeting']}）- {record['date']}"):
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        st.markdown(f"**📅 発言日:** {record['date']}")
+                        st.markdown(f"**👤 発言者:** {record['speaker']}")
+                        st.markdown(f"**🏛️ 会議:** {record['nameOfMeeting']}")
+                        st.markdown(f"**🏢 院:** {record.get('nameOfHouse', '不明')}")
+                    
+                    with col2:
+                        speech_length = len(record['speech'])
+                        st.metric("文字数", f"{speech_length:,}")
+                    
+                    st.markdown("---")
+                    
+                    # 発言内容のハイライト表示
+                    speech_text = record['speech']
+                    highlighted_speech = self.highlight_text(speech_text, current_keyword)
+                    
+                    st.markdown(
+                        f'<div class="speech-card" style="height: 300px; overflow-y: auto;">{highlighted_speech}</div>',
+                        unsafe_allow_html=True
+                    )
+                    
+                    st.markdown(f"🔗 [発言の全文と周辺議事を読む]({record['speechURL']})")
+        
+        if search_button or (auto_search and current_params):
+            # 自動検索の場合は既にsearch_paramsが設定されている
+            if not auto_search:
+                # 通常の検索ボタンが押された場合のパラメータ構築
+                search_params = {}
+                
+                if keyword:
+                    search_params["any"] = keyword
+                if speaker:
+                    search_params["speaker"] = speaker
+                if name_of_meeting:
+                    search_params["nameOfMeeting"] = name_of_meeting
+                if name_of_house != "指定しない":
+                    search_params["nameOfHouse"] = name_of_house
+                if from_date:
+                    search_params["from"] = from_date.strftime('%Y-%m-%d')
+                if until_date:
+                    search_params["until"] = until_date.strftime('%Y-%m-%d')
 
+            # 検索パラメータが空でないかチェック
             if search_params:
+                # デバッグ情報を表示
+                st.write(f"🔍 検索パラメータ: {search_params}")
+                
+                # 検索条件をセッション状態に保存
+                st.session_state['current_search_params'] = search_params
+                
                 with st.spinner("🔍 検索中です..."):
                     time.sleep(1)
                     data = self.search_speeches(search_params)
@@ -388,14 +593,7 @@ class KokkaiSearchApp:
                             st.session_state.meeting_analysis = self.analyze_meeting_keywords(data)
                         
                         # 検索履歴に追加
-                        search_history_item = {
-                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                            'params': search_params,
-                            'results_count': data['numberOfRecords']
-                        }
-                        st.session_state.search_history.insert(0, search_history_item)
-                        if len(st.session_state.search_history) > 10:
-                            st.session_state.search_history.pop()
+                        self.add_to_search_history(search_params, data['numberOfRecords'])
                         
                         # 成功メッセージ
                         st.success(f"✅ 検索結果が {data['numberOfRecords']} 件見つかりました。（最大30件表示）")
@@ -710,10 +908,58 @@ class KokkaiSearchApp:
     def history_page(self):
         st.markdown('<h2 class="sub-header">📚 検索履歴</h2>', unsafe_allow_html=True)
         
+        # クリアボタン
+        col1, col2 = st.columns([3, 1])
+        with col2:
+            if st.button("🗑️ 履歴をクリア", type="secondary"):
+                self.clear_search_history()
+                st.rerun()
+        
         if st.session_state.search_history:
+            st.write(f"📊 検索履歴: {len(st.session_state.search_history)}件")
+            
             for i, item in enumerate(st.session_state.search_history):
                 with st.expander(f"🕐 {item['timestamp']} - {item['results_count']}件"):
-                    st.json(item['params'])
+                    # 検索条件を読みやすい形式で表示
+                    params = item.get('params', {})
+                    if params:
+                        st.markdown("#### 📋 検索条件")
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            if params.get('any'):
+                                st.write(f"**🔎 キーワード:** {params['any']}")
+                            if params.get('speaker'):
+                                st.write(f"**👤 発言者:** {params['speaker']}")
+                            if params.get('nameOfMeeting'):
+                                st.write(f"**🏛️ 会議名:** {params['nameOfMeeting']}")
+                        
+                        with col2:
+                            if params.get('nameOfHouse'):
+                                st.write(f"**🏢 院名:** {params['nameOfHouse']}")
+                            if params.get('from'):
+                                st.write(f"**📅 開始日:** {params['from']}")
+                            if params.get('until'):
+                                st.write(f"**📅 終了日:** {params['until']}")
+                        
+                        # 詳細なJSONも表示（折りたたみ）
+                        with st.expander("📄 詳細データ（JSON）"):
+                            st.json(params)
+                    else:
+                        st.warning("検索条件の詳細がありません。")
+                    
+                    # 再検索ボタン
+                    if st.button(f"🔍 この条件で再検索", key=f"re_search_{i}"):
+                        # 検索条件を復元して検索ページに移動
+                        if params:  # 検索条件が存在する場合のみ
+                            st.session_state.re_search_params = item['params']
+                            st.session_state.auto_search = True  # 自動検索フラグを設定
+                            st.session_state.current_page = "🔍 検索"  # 検索ページに移動
+                            st.success("検索条件を復元しました。自動的に検索を実行します。")
+                            # 検索ページに自動的に移動
+                            st.rerun()
+                        else:
+                            st.error("検索条件が空のため、再検索できません。")
         else:
             st.info("📚 検索履歴がありません。")
 
