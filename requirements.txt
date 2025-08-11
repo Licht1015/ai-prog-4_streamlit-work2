@@ -56,5 +56,4 @@ tzdata==2025.2
 urllib3==2.5.0
 watchdog==4.0.2
 wheel==0.45.1
-win_inet_pton==1.1.0
 wordcloud==1.9.4
