@@ -1,284 +1,243 @@
 # 国会議事録検索・分析アプリケーション
 
-## 📋 プロジェクト概要
+## 📋 アプリケーション概要
 
-### 課題2: Streamlitを使ったアプリの開発 + 公開
-**学籍番号**: [学籍番号]  
-**作成者**: [名前]  
-**作成日**: 2024年8月  
-**締切**: 08月15日（金） 23:59
+このアプリケーションは、国会議事録APIを活用した検索・分析ツールです。ユーザーはキーワード、期間、発言者などの条件を指定して国会議事録を検索し、結果を分析・可視化することができます。
 
-このアプリケーションは、国会議事録APIを活用した高度な検索・分析ツールです。Streamlitを使用して構築され、議事録の検索、分析、可視化機能を提供します。
+### 主要機能
+- 🔍 **高度な検索機能**: キーワード、期間、発言者による検索
+- 📊 **統計分析**: 発言者別・会議別・日付別の統計
+- 🏛️ **キーワード分析**: 形態素解析によるキーワード抽出とワードクラウド生成
+- 📚 **検索履歴管理**: CSVファイルによる履歴保存
+- 📈 **データ可視化**: インタラクティブなグラフとチャート
 
-### 🎯 課題要件の達成状況
-
-#### ✅ 必須要件
-- [x] **APIキー/トークン不要のAPI使用**: 国会議事録API（公開API）
-- [x] **ユーザー入力の受付**: キーワード、期間、発言者などの検索条件
-- [x] **処理と結果表示**: 検索結果の分析・可視化
-- [x] **ファイル分離**: アプリ部分（main.py）とロジック部分（logic.py）の分離
-- [x] **システム設計図**: 下記に記載
-- [x] **コード説明図**: 下記に記載
-- [x] **README.md**: アプリ説明と使用APIの記載
-
-#### ✅ 加点要件（+3点）
-- [x] **データベース機能**: CSVファイル（search_history.csv）による検索履歴保存
+### 使用しているAPI
+- **国会議事録API**: https://kokkai.ndl.go.jp/api/speech
+  - APIキー不要の公開API
+  - JSON形式で議事録データを取得
+  - 検索パラメータ: keyword, from, until, speaker, meeting
 
 ## 🏗️ システム設計図
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Streamlit Web UI                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │
-│  │   検索機能   │  │   分析機能   │  │   履歴機能   │      │
-│  │   (main.py) │  │ (logic.py)  │  │(components) │      │
-│  └─────────────┘  └─────────────┘  └─────────────┘      │
-├─────────────────────────────────────────────────────────────┤
-│                    Data Processing                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │
-│  │   Pandas    │  │   Plotly    │  │   Janome    │      │
-│  │  DataFrame  │  │  Charts     │  │  Tokenizer  │      │
-│  └─────────────┘  └─────────────┘  └─────────────┘      │
-├─────────────────────────────────────────────────────────────┤
-│                    External APIs                           │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │          国会議事録API                              │   │
-│  │      https://kokkai.ndl.go.jp/api/speech          │   │
-│  │      (APIキー不要の公開API)                        │   │
-│  └─────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                    Data Storage                           │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │
-│  │   CSV File  │  │ Session     │  │   History   │      │
-│  │(search_hist)│  │  State      │  │  Management │      │
-│  └─────────────┘  └─────────────┘  └─────────────┘      │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "ユーザー層"
+        U[ユーザー]
+    end
+    
+    subgraph "プレゼンテーション層"
+        ST[Streamlit Web UI]
+        SB[サイドバー]
+        PG[ページ管理]
+    end
+    
+    subgraph "アプリケーション層"
+        MAIN[main.py]
+        COMP[components.py]
+        LOGIC[logic.py]
+    end
+    
+    subgraph "ビジネスロジック層"
+        KSA[KokkaiSearchApp]
+        SEARCH[検索機能]
+        ANALYTICS[分析機能]
+        HISTORY[履歴管理]
+    end
+    
+    subgraph "データ処理層"
+        PD[Pandas]
+        PL[Plotly]
+        JN[Janome]
+        WC[WordCloud]
+    end
+    
+    subgraph "外部サービス"
+        API[国会議事録API<br/>https://kokkai.ndl.go.jp/api/speech]
+    end
+    
+    subgraph "データストレージ"
+        CSV[search_history.csv]
+        SESSION[Session State]
+    end
+    
+    U --> ST
+    ST --> SB
+    ST --> PG
+    ST --> MAIN
+    MAIN --> COMP
+    MAIN --> LOGIC
+    LOGIC --> KSA
+    KSA --> SEARCH
+    KSA --> ANALYTICS
+    KSA --> HISTORY
+    SEARCH --> API
+    ANALYTICS --> PD
+    ANALYTICS --> PL
+    ANALYTICS --> JN
+    ANALYTICS --> WC
+    HISTORY --> CSV
+    KSA --> SESSION
+    
+    style U fill:#e1f5fe
+    style ST fill:#f3e5f5
+    style MAIN fill:#e8f5e8
+    style LOGIC fill:#fff3e0
+    style API fill:#ffebee
+    style CSV fill:#f1f8e9
 ```
 
 ## 📁 コード説明図
 
+```mermaid
+graph LR
+    subgraph "メインファイル"
+        MAIN[main.py<br/>313行<br/>エントリーポイント]
+    end
+    
+    subgraph "UIコンポーネント"
+        COMP[components.py<br/>157行<br/>UI管理]
+    end
+    
+    subgraph "ビジネスロジック"
+        LOGIC[logic.py<br/>1198行<br/>コアロジック]
+    end
+    
+    subgraph "KokkaiSearchAppクラス"
+        INIT[__init__<br/>初期化]
+        SEARCH[search_speeches<br/>API通信]
+        ANALYZE[analyze_search_results<br/>データ分析]
+        VISUALIZE[create_visualizations<br/>可視化]
+        HISTORY[add_to_search_history<br/>履歴管理]
+        EXPORT[export_results<br/>データ出力]
+    end
+    
+    subgraph "主要メソッド"
+        SEARCH_PAGE[search_page<br/>検索ページ]
+        ANALYSIS_PAGE[analysis_page<br/>分析ページ]
+        MEETING_PAGE[meeting_analysis_page<br/>会議分析]
+        HISTORY_PAGE[history_page<br/>履歴ページ]
+        HELP_PAGE[help_page<br/>ヘルプページ]
+    end
+    
+    subgraph "データ処理"
+        EXTRACT[extract_keywords<br/>キーワード抽出]
+        WORDCLOUD[create_wordcloud<br/>ワードクラウド]
+        HIGHLIGHT[highlight_text<br/>テキスト強調]
+    end
+    
+    subgraph "外部ライブラリ"
+        ST[streamlit<br/>Web UI]
+        REQ[requests<br/>HTTP通信]
+        PD[pandas<br/>データ処理]
+        PL[plotly<br/>可視化]
+        JN[janome<br/>形態素解析]
+        WC[wordcloud<br/>ワードクラウド]
+    end
+    
+    MAIN --> COMP
+    MAIN --> LOGIC
+    COMP --> LOGIC
+    LOGIC --> INIT
+    LOGIC --> SEARCH
+    LOGIC --> ANALYZE
+    LOGIC --> VISUALIZE
+    LOGIC --> HISTORY
+    LOGIC --> EXPORT
+    
+    SEARCH --> SEARCH_PAGE
+    ANALYZE --> ANALYSIS_PAGE
+    ANALYZE --> MEETING_PAGE
+    HISTORY --> HISTORY_PAGE
+    LOGIC --> HELP_PAGE
+    
+    EXTRACT --> JN
+    WORDCLOUD --> WC
+    SEARCH --> REQ
+    ANALYZE --> PD
+    VISUALIZE --> PL
+    COMP --> ST
+    
+    style MAIN fill:#e8f5e8
+    style COMP fill:#e3f2fd
+    style LOGIC fill:#fff3e0
+    style INIT fill:#f3e5f5
+    style SEARCH fill:#e1f5fe
+    style ANALYZE fill:#f1f8e9
+    style VISUALIZE fill:#fff8e1
+    style HISTORY fill:#fce4ec
+    style EXPORT fill:#e0f2f1
 ```
-work2/
-├── main.py                    # アプリケーションエントリーポイント
-│   ├── アプリケーション初期化
-│   ├── ページルーティング
-│   ├── セッション状態管理
-│   └── 条件付きインポート処理
-│
-├── logic.py                   # ビジネスロジック（1198行）
-│   ├── KokkaiSearchApp クラス
-│   │   ├── __init__()        # 初期化
-│   │   ├── search_speeches() # API通信
-│   │   ├── extract_keywords() # キーワード抽出
-│   │   ├── analyze_results()  # 結果分析
-│   │   ├── create_visualizations() # 可視化
-│   │   ├── search_page()      # 検索ページ
-│   │   ├── analysis_page()    # 分析ページ
-│   │   ├── meeting_analysis_page() # キーワード分析
-│   │   ├── history_page()     # 履歴ページ
-│   │   └── help_page()        # ヘルプページ
-│   └── データ処理・分析機能
-│
-├── components.py              # UIコンポーネント（157行）
-│   └── show_sidebar()         # サイドバー表示
-│
-├── requirements.txt           # 依存関係定義（134行）
-├── search_history.csv         # 検索履歴データ
-├── README.md                 # プロジェクトドキュメント
-└── TECHNICAL_SPECIFICATION.md # 技術仕様書
-```
 
-### 技術スタック
-- **フレームワーク**: Streamlit
-- **データ処理**: Pandas, NumPy
-- **可視化**: Plotly, Matplotlib
-- **形態素解析**: Janome（日本語）
-- **ワードクラウド**: WordCloud
-- **API**: 国会議事録API
+## 🚀 セットアップと実行
 
-## 🚀 機能一覧
+### 必要な環境
+- Python 3.8+
+- Anaconda（推奨）
 
-### 1. 🔍 検索機能
-- **高度な検索**: キーワード、期間、会議種別による絞り込み
-- **リアルタイム検索**: 検索結果の即座表示
-- **検索履歴**: 過去の検索条件の保存・再利用
-- **結果エクスポート**: CSV形式での検索結果出力
-
-### 2. 📊 分析機能
-- **統計分析**: 発言者別、会議別の統計情報
-- **時系列分析**: 期間別の発言頻度分析
-- **キーワード分析**: 頻出語句の抽出・分析
-- **可視化**: グラフ・チャートによる結果表示
-
-### 3. 🏛️ 会議別キーワード分析
-- **形態素解析**: Janomeによる日本語テキスト解析
-- **キーワード抽出**: 重要語句の自動抽出
-- **ワードクラウド**: 視覚的なキーワード表示
-- **ストップワード**: 不要語句の自動除外
-
-### 4. 📚 検索履歴管理
-- **履歴保存**: 検索条件と結果数の記録
-- **履歴表示**: 過去の検索履歴の一覧表示
-- **履歴削除**: 不要な履歴の削除機能
-- **CSV出力**: 履歴データの外部出力
-
-## 🛠️ セットアップ手順
-
-### 1. 環境準備（Anaconda仮想環境）
+### インストール手順
 ```bash
-# Anaconda環境の確認
-conda --version
-
-# 新しい仮想環境の作成
-conda create -n streamlit
-
-# 環境のアクティベート
-conda activate streamlit
-```
-
-### 2. 依存関係のインストール
-```bash
+# 依存関係のインストール
 pip install -r requirements.txt
-```
 
-### 3. アプリケーション起動
-```bash
+# アプリケーションの起動
 streamlit run main.py
 ```
 
-## 📖 使用方法
-
-### 検索機能の利用
-1. **基本検索**: キーワードを入力して検索
-2. **詳細検索**: 期間、会議種別、発言者を指定
-3. **結果確認**: 検索結果の一覧表示
-4. **詳細表示**: 個別の発言内容の確認
-
-### 分析機能の利用
-1. **統計表示**: 検索結果の統計情報確認
-2. **グラフ表示**: 各種チャート・グラフの確認
-3. **エクスポート**: 分析結果のCSV出力
-
-### キーワード分析の利用
-1. **会議選択**: 分析対象の会議を選択
-2. **キーワード抽出**: 自動的な重要語句抽出
-3. **ワードクラウド**: 視覚的なキーワード表示
-
-## 🔧 設定・カスタマイズ
-
-### 環境変数
-```python
-# API設定
-API_URL = "https://kokkai.ndl.go.jp/api/speech"
-
-# 検索履歴設定
-HISTORY_FILE = "search_history.csv"
-```
-
-### ストップワードのカスタマイズ
-```python
-# logic.py内のstop_wordsを編集
-self.stop_words = {
-    'する', 'ある', 'いる', 'なる', 'れる',
-    # カスタムストップワードを追加
-}
-```
-
-## 📊 データ構造
-
-### 検索履歴データ
-```csv
-timestamp,params,results_count
-2024-01-01 10:00:00,"{'keyword': '経済'}",150
-```
-
-### 検索結果データ
-```json
-{
-  "speechID": "会議録ID",
-  "speech": "発言内容",
-  "speaker": "発言者",
-  "meeting": "会議名",
-  "date": "日付"
-}
-```
-
-## 🐛 トラブルシューティング
-
-### よくある問題
-
-#### 1. Janomeライブラリのエラー
-```
-解決方法: pip install janome
-```
-
-#### 2. WordCloudライブラリのエラー
-```
-解決方法: pip install wordcloud matplotlib
-```
-
-#### 3. 検索結果が表示されない
-- ネットワーク接続を確認
-- APIエンドポイントの確認
-- 検索条件の見直し
-
-#### 4. グラフが表示されない
-- Plotlyライブラリの確認
-- データ形式の確認
-
-## 🔄 更新履歴
-
-### v1.0.0 (2024-08-01)
-- 初期バージョンリリース
-- 基本検索機能
-- 分析機能
-- 検索履歴機能
-
-### v1.1.0 (2024-08-15)
-- キーワード分析機能追加
-- ワードクラウド機能追加
-- UI改善
-- 課題2要件の完全対応
-
-## 📝 開発者向け情報
-
-### コード規約
-- **命名規則**: スネークケース（Python標準）
-- **コメント**: 日本語での詳細コメント
-- **エラーハンドリング**: try-except文の適切な使用
-
-### テスト
+### オプション機能の有効化
 ```bash
-# 単体テストの実行
-python -m pytest tests/
+# 形態素解析機能（キーワード分析）
+pip install janome
 
-# 統合テストの実行
-python -m pytest tests/integration/
+# ワードクラウド機能
+pip install wordcloud matplotlib
 ```
 
-### デプロイ
-```bash
-# Streamlit Cloud用の設定
-# requirements.txtの確認
-# .streamlit/config.tomlの設定
-```
+## 📊 機能詳細
 
+### 検索機能
+- キーワード検索
+- 期間指定（開始日〜終了日）
+- 発言者名指定
+- 会議名指定
+- 最大取得件数設定
 
----
+### 分析機能
+- 発言者別統計
+- 会議別統計
+- 日付別統計
+- キーワード頻度分析
+- ワードクラウド生成
 
-**注意**: このアプリケーションは国会議事録APIを使用しています。APIの利用規約を遵守してご利用ください。
+### データ管理
+- 検索履歴の自動保存
+- CSV形式での履歴エクスポート
+- セッション状態の管理
 
-## 📋 課題提出情報
+## 🔧 技術仕様
 
-### 提出要件
-- [ ] **アプリURL**: [Streamlit Cloud URL]
-- [ ] **GitHub URL**: [GitHubレポジトリURL]
-- [x] **加点の有無**: 有り（CSVファイルによるデータベース機能）
-- [ ] **その他コメント**: [難しかった点や感想など]
+### アーキテクチャ
+- **フロントエンド**: Streamlit
+- **バックエンド**: Python
+- **データ処理**: Pandas, NumPy
+- **可視化**: Plotly
+- **自然言語処理**: Janome（オプション）
+- **データストレージ**: CSVファイル
 
-### 使用API
-**国会議事録API**
-- エンドポイント: https://kokkai.ndl.go.jp/api/speech
-- APIキー: 不要（公開API）
-- 機能: 国会議事録の検索・取得
-- レスポンス形式: JSON
+### パフォーマンス
+- 検索実行: 5秒以内
+- ページ表示: 2秒以内
+- グラフ生成: 3秒以内
+
+## 📝 開発情報
+
+- **課題**: Streamlitを使ったアプリの開発 + 公開
+- **学籍番号**: [学籍番号]
+- **作成者**: [名前]
+- **作成日**: 2024年8月
+- **バージョン**: 1.1.0
+
+## 🔗 関連リンク
+
+- **国会議事録API**: https://kokkai.ndl.go.jp/api/speech
+- **Streamlit**: https://streamlit.io/
+- **参考リポジトリ**: https://github.com/yoji0806/paper_in_economics
