@@ -243,4 +243,4 @@ pip install wordcloud matplotlib
 ## 🔗 関連リンク
 
 - **国会議事録API**: https://kokkai.ndl.go.jp/api/speech
-- **Streamlit**: https://streamlit.io/
+- **Streamlit**: https://diet-record-search-and-analysis.streamlit.app/
