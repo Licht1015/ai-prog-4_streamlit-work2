@@ -244,4 +244,3 @@ pip install wordcloud matplotlib
 
 - **国会議事録API**: https://kokkai.ndl.go.jp/api/speech
 - **Streamlit**: https://streamlit.io/
-- **参考リポジトリ**: https://github.com/yoji0806/paper_in_economics
