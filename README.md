@@ -244,3 +244,9 @@ pip install wordcloud matplotlib
 
 - **国会議事録API**: https://kokkai.ndl.go.jp/api/speech
 - **Streamlit**: https://streamlit.io/
+
+## 📈 夏休み課題の改善案
+
+課題3で作成した改善案については、以下のリンクからご確認いただけます：
+
+👉 **[夏休み課題の改善案](improvement.md)** - AI議事録アナリストへの進化提案
